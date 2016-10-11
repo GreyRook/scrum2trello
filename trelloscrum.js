@@ -40,7 +40,7 @@ var debounce = function (func, threshold, execAsap) {
 }
 
 // For MutationObserver
-var obsConfig = { childList: true, characterData: true, attributes: false, subtree: true, showConsumedPicker: false, alwaysShowPicker: true };
+var obsConfig = { childList: true, characterData: true, attributes: false, subtree: true, alwaysShowPicker: true };
 
 //default story point picker sequence (can be overridden in the Scrum for Trello 'Settings' popup)
 var _pointSeq = ['?', 0, .5, 1, 2, 3, 5, 8, 13, 21];
@@ -51,10 +51,12 @@ var _pointsAttr = ['cpoints', 'points'];
 var S4T_SETTINGS = [];
 var SETTING_NAME_LINK_STYLE = "burndownLinkStyle";
 var SETTING_NAME_ESTIMATES = "estimatesSequence";
-var S4T_ALL_SETTINGS = [SETTING_NAME_LINK_STYLE, SETTING_NAME_ESTIMATES];
+var SETTING_NAME_SHOW_DONE = "showDone";
+var S4T_ALL_SETTINGS = [SETTING_NAME_LINK_STYLE, SETTING_NAME_ESTIMATES, SETTING_NAME_SHOW_DONE];
 var S4T_SETTING_DEFAULTS = {};
 S4T_SETTING_DEFAULTS[SETTING_NAME_LINK_STYLE] = 'full';
 S4T_SETTING_DEFAULTS[SETTING_NAME_ESTIMATES] = _pointSeq.join();
+S4T_SETTING_DEFAULTS[SETTING_NAME_SHOW_DONE] = false;
 refreshSettings(); // get the settings right away (may take a little bit if using Chrome cloud storage)
 
 //internals
@@ -292,6 +294,7 @@ function showSettings()
 		// Load the current settings (with defaults in case Settings haven't been set).
 		var setting_link = S4T_SETTINGS[SETTING_NAME_LINK_STYLE];
 		var setting_estimateSeq = S4T_SETTINGS[SETTING_NAME_ESTIMATES];
+        var setting_showDone = S4T_SETTINGS[SETTING_NAME_SHOW_DONE];
 
 		var settingsDiv = $('<div/>', {style: "padding:0px 10px;font-family:'Helvetica Neue', Arial, Helvetica, sans-serif;"});
 		var iframeHeader = $('<h3/>', {style: 'text-align: center;'});
@@ -353,12 +356,25 @@ function showSettings()
 											});
 			fieldset_estimateButtons.append(restoreDefaultsButton);
 
+        var fieldset_showDone = $('<fieldset/>', {style: 'margin-top:5px'});
+        var legend_showDone = $('<legend/>');
+        legend_showDone.text("Show Consumed");
+        fieldset_showDone.append(legend_showDone);
+            explanation = $('<div/>').text("Also list out the values to pick and show how much work has been finished so far.");
+            fieldset_showDone.append(explanation);
+
+            var showDoneId = 'showDoneCheck';
+            var showDoneField = $('<label />').html('Show consumed estimates').prepend($('<input />', {id: showDoneId, type: 'checkbox', checked: setting_showDone}));
+
+            fieldset_showDone.append(showDoneField);
+
 		var saveButton = $('<button/>', {style:'margin-top:5px'}).text('Save Settings').click(function(e){
 			e.preventDefault();
 
 			// Save the settings (persists them using Chrome cloud, LocalStorage, or Cookies - in that order of preference if available).
 			S4T_SETTINGS[SETTING_NAME_LINK_STYLE] = $('#'+settingsFrameId).contents().find('input:radio[name='+burndownLinkSetting_radioName+']:checked').val();
 			S4T_SETTINGS[SETTING_NAME_ESTIMATES] = $('#'+settingsFrameId).contents().find('#'+estimateFieldId).val();
+            S4T_SETTINGS[SETTING_NAME_SHOW_DONE] = $('#'+settingsFrameId).contents().find('#'+showDoneId).is(':checked');
 
 			// Persist all settings.
 			$.each(S4T_ALL_SETTINGS, function(i, settingName){
@@ -374,6 +390,7 @@ function showSettings()
 		// Set up the form (all added down here to be easier to change the order).
 		settingsForm.append(fieldset_burndownLink);
 		settingsForm.append(fieldset_estimateButtons);
+        settingsForm.append(fieldset_showDone);
 		settingsForm.append(saveButton);
 		settingsForm.append(savedIndicator);
 	}
@@ -400,7 +417,7 @@ function showSettings()
 
 	// Trello swallows normal input, so things like checkboxes and radio buttons don't work right... so we stuff everything in an iframe.
 	var iframeObj = $('<iframe/>', {frameborder: '0',
-						 style: 'width: 670px; height: 528px;', /* 512 was fine on Chrome, but FF requires 528 to avoid scrollbars */
+						 style: 'width: 670px; height: 570px;', /* 512 was fine on Chrome, but FF requires 528 to avoid scrollbars */
 						 id: settingsFrameId,
 	});
 	$windowWrapper = $('.window-wrapper');
@@ -763,7 +780,7 @@ function showPointPicker(location) {
 		return false;
 	}));
 
-  if(!obsConfig.showConsumedPicker) return;
+  if(!S4T_SETTINGS[SETTING_NAME_SHOW_DONE]) return;
 	if($(location).find('.picker-consumed').length) return;
 	var $pickerConsumed = $('<div/>', {class: "picker-consumed"}).appendTo($elementToAddPickerTo.get(0));
 	$pickerConsumed.append($('<span>', {class: "picker-title"}).text("Consumed Points"));

@@ -1,5 +1,14 @@
-Scrum for Trello
+Scrum 2 Trello
 ===========
+
+This is a forked version of [Marcel Duin's](http://webglmarcel.q42.net/) and [Jasper Kaizer's](https://twitter.com/jkaizer) original version of [Scrum for Trello](https://github.com/Q42/TrelloScrum).
+Some various changes were made to enhance the use of this plugin even further.
+
+ * The picker shows up immediately after opening a card
+ * Option to hide the consumed points from the settings parentheses
+ * Added count of question marks to totals
+ 
+
 
 Scrum for Trello adds functionality to the awesome trello.com for use in Scrum projects.
 
@@ -36,5 +45,3 @@ Great improvements made by @nicpottier and @paullofte:
 * The point value is moved to be a badge on the card.
 * Added support for Zero Point Cards (0), Unknown Point Cards (?), Decimal Value Cards (.5)
 * In addition I added the functionality to have the list total reflect the current filtered set of cards.
-
-
