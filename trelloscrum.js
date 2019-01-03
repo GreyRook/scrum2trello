@@ -49,12 +49,10 @@ var _pointsAttr = ['cpoints', 'points'];
 
 // All settings and their defaults.
 var S4T_SETTINGS = [];
-var SETTING_NAME_LINK_STYLE = "burndownLinkStyle";
 var SETTING_NAME_ESTIMATES = "estimatesSequence";
 var SETTING_NAME_SHOW_DONE = "showDone";
-var S4T_ALL_SETTINGS = [SETTING_NAME_LINK_STYLE, SETTING_NAME_ESTIMATES, SETTING_NAME_SHOW_DONE];
+var S4T_ALL_SETTINGS = [SETTING_NAME_ESTIMATES, SETTING_NAME_SHOW_DONE];
 var S4T_SETTING_DEFAULTS = {};
-S4T_SETTING_DEFAULTS[SETTING_NAME_LINK_STYLE] = 'full';
 S4T_SETTING_DEFAULTS[SETTING_NAME_ESTIMATES] = _pointSeq.join();
 S4T_SETTING_DEFAULTS[SETTING_NAME_SHOW_DONE] = false;
 refreshSettings(); // get the settings right away (may take a little bit if using Chrome cloud storage)
@@ -63,23 +61,18 @@ refreshSettings(); // get the settings right away (may take a little bit if usin
 var reg = /((?:^|\s?))\((\x3f|\d*\.?\d+)(\))\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by ()
     regC = /((?:^|\s?))\[(\x3f|\d*\.?\d+)(\])\s?/m, //parse regexp- accepts digits, decimals and '?', surrounded by []
     iconUrl, pointsDoneUrl,
-	flameUrl, flame18Url,
 	scrumLogoUrl, scrumLogo18Url;
 // FIREFOX_BEGIN_REMOVE
 if(typeof chrome !== 'undefined'){
     // Works in Chrome
 	iconUrl = chrome.extension.getURL('images/storypoints-icon.png');
 	pointsDoneUrl = chrome.extension.getURL('images/points-done.png');
-    flameUrl = chrome.extension.getURL('images/burndown_for_trello_icon_12x12.png');
-    flame18Url = chrome.extension.getURL('images/burndown_for_trello_icon_18x18.png');
 	scrumLogoUrl = chrome.extension.getURL('images/trello-scrum-icon_12x12.png');
 	scrumLogo18Url = chrome.extension.getURL('images/trello-scrum-icon_18x18.png');
 } else if(navigator.userAgent.indexOf('Safari') != -1){ // Chrome defines both "Chrome" and "Safari", so this test MUST be done after testing for Chrome
 	// Works in Safari
 	iconUrl = safari.extension.baseURI + 'images/storypoints-icon.png';
 	pointsDoneUrl = safari.extension.baseURI + 'images/points-done.png';
-    flameUrl = safari.extension.baseURI + 'images/burndown_for_trello_icon_12x12.png';
-    flame18Url = safari.extension.baseURI + 'images/burndown_for_trello_icon_18x18.png';
 	scrumLogoUrl = safari.extension.baseURI + 'images/trello-scrum-icon_12x12.png';
 	scrumLogo18Url = safari.extension.baseURI + 'images/trello-scrum-icon_18x18.png';
 } else {
@@ -88,8 +81,6 @@ if(typeof chrome !== 'undefined'){
 	if(typeof self.options != 'undefined'){ // options defined in main.js
 		iconUrl = self.options.iconUrl;
 		pointsDoneUrl = self.options.pointsDoneUrl;
-        flameUrl = self.options.flameUrl;
-        flame18Url = self.options.flame18Url;
 		scrumLogoUrl = self.options.scrumLogoUrl;
 		scrumLogo18Url = self.options.scrumLogo18Url;
 	}
@@ -134,6 +125,7 @@ $(function(){
 	});
 
 	calcListPoints();
+	showSettingsLink();
 });
 
 // Recalculates every card and its totals (used for significant DOM modifications).
@@ -201,86 +193,25 @@ var recalcTotalsObserver = new CrossBrowser.MutationObserver(function(mutations)
 });
 recalcTotalsObserver.observe(document.body, obsConfig);
 
-// Refreshes the link to the Burndown Chart dialog.
-function updateBurndownLink(){
-    // Add the link for Burndown Charts
-    //$('.s4tLink').remove();
-    if($('.s4tLink').length === 0){
-		var buttons = "";
-
-		// Link for Burndown Charts
-		var linkSetting = S4T_SETTINGS[SETTING_NAME_LINK_STYLE];
-		if(linkSetting !== 'none'){
-			buttons += "<a id='burndownLink' class='s4tLink quiet ed board-header-btn dark-hover' href='#'>";
-			buttons += "<span class='icon-sm board-header-btn-icon'><img src='"+flameUrl+"' width='12' height='12'/></span>";
-			if(linkSetting !== 'icon'){
-				buttons += "<span class='text board-header-btn-text'>Burndown Chart</span>";
-			}
-			buttons += "</a>";
-		}
-		// Link for settings
-		buttons += "<a id='scrumSettingsLink' class='s4tLink quiet ed board-header-btn dark-hover' href='#'>";
-		buttons += "<span class='icon-sm board-header-btn-icon'><img src='"+scrumLogoUrl+"' width='12' height='12' title='Settings: Scrum for Trello'/></span>";
-		//buttons += "<span class='text board-header-btn-text'>Settings</span>"; // too big :-/ icon only for now
-		buttons += "</a>";
-		var showOnLeft = true;
-		if(showOnLeft){
-			$('.board-header-btns.mod-left').last().after(buttons);
-		} else {
-			$('.board-header-btns.mod-right,#board-header a').last().after(buttons);
-		}
-        $('#burndownLink').click(showBurndown);
-		$('#scrumSettingsLink').click(showSettings);
-    }
-}
-
 var ignoreClicks = function(){ return false; };
-function showBurndown()
-{
-    $('body').addClass("window-up");
-    $('.window').css("display", "block").css("top", "50px");
-
-	// Figure out the current user and board.
-	$memberObj = $('.header-user .member-avatar');
-	if($memberObj.length == 0){
-		$memberObj = $('.header-user .member-initials'); // if the user doesn't have an icon
-	}
-	var username = $memberObj.attr('title').match(/\(([^\)\(]*?)\)$/)[1];
-
-	// Find the short-link board name, etc. so that the back-end can figure out what board this is.
-	var shortLink = document.location.href.match(/b\/([A-Za-z0-9]{8})\//)[1];
-	var boardName = "";
-	boardName = $('.board-name span.text').text().trim();
-
-	// Build the dialog DOM elements. There are no unescaped user-provided strings being used here.
-	var clearfix = $('<div/>', {class: 'clearfix'});
-	var windowHeaderUtils = $('<div/>', {class: 'window-header-utils dialog-close-button'}).append( $('<a/>', {class: 'icon-lg icon-close dark-hover js-close-window', href: '#', title:'Close this dialog window.'}) );
-	var iFrameWrapper = $('<div/>', {style: 'padding:10px; padding-top: 13px;'});
-    var flameIcon = $('<img/>', {style: 'position:absolute; margin-left: 20px; margin-top:15px;', src:flame18Url});
-
-	var actualIFrame = $('<iframe/>', {frameborder: '0',
-						 style: 'width: 670px; height: 512px;',
-						 id: 'burndownFrame',
-						 src: "https://www.burndownfortrello.com/s4t_burndownPopup.php?username="+encodeURIComponent(username)+"&shortLink="+encodeURIComponent(shortLink)+"&boardName="+encodeURIComponent(boardName)
-						});
-	var loadingFrameIndicator = $('<span/>', {class: 'js-spinner', id: 'loadingBurndownFrame', style: 'position: absolute; left: 225px; top: 260px;'}).append($('<span/>', {class: 'spinner left', style: 'margin-right:4px;'})).append("Loading 'Burndown for Trello'...");
-	iFrameWrapper.append(loadingFrameIndicator); // this will show that the iframe is loading... until it loads.
-	iFrameWrapper.append(actualIFrame);
-    actualIFrame.css("visibility", "hidden");
-	$windowWrapper = $('.window-wrapper');
-    $windowWrapper.click(ignoreClicks);
-	$windowWrapper.empty().append(clearfix).append(flameIcon).append(windowHeaderUtils).append(iFrameWrapper);
-	$('#burndownFrame').load(function(){ $('#loadingBurndownFrame').remove(); actualIFrame.css("visibility", "visible"); }); // once the iframe loads, get rid of the loading indicator.
-	$('.window-header-utils a.js-close-window').click(hideBurndown);
-    //$(window).bind('resize', repositionBurndown);
-    $('.window-overlay').bind('click', hideBurndown);
-
-    //repositionBurndown();
-}
 
 var settingsFrameId = 'settingsFrame';
-function showSettings()
-{
+
+function showSettingsLink() {
+	if($('.s4tLink').length !== 0){
+		return;
+	}
+
+	var buttons = "";
+	// Link for settings
+	buttons += "<a id='scrumSettingsLink' class='s4tLink quiet ed board-header-btn dark-hover' href='#'>";
+	buttons += "<span class='icon-sm board-header-btn-icon'><img src='"+scrumLogoUrl+"' width='12' height='12' title='Settings: Scrum for Trello'/></span>";
+	buttons += "</a>";
+	$('.board-header-btns.mod-left').last().after(buttons);
+	$('#scrumSettingsLink').click(showSettings);
+}
+
+function showSettings() {
     $('body').addClass("window-up");
     $('.window').css("display", "block").css("top", "50px");
 
@@ -292,7 +223,6 @@ function showSettings()
 	// Create the Settings form.
 	{
 		// Load the current settings (with defaults in case Settings haven't been set).
-		var setting_link = S4T_SETTINGS[SETTING_NAME_LINK_STYLE];
 		var setting_estimateSeq = S4T_SETTINGS[SETTING_NAME_ESTIMATES];
         var setting_showDone = S4T_SETTINGS[SETTING_NAME_SHOW_DONE];
 
@@ -303,36 +233,6 @@ function showSettings()
 		settingsHeader.text('Settings');
 		var settingsInstructions = $('<div/>', {style: 'margin-bottom:10px'}).html('These settings affect how Scrum for Trello appears to <em>you</em> on all boards.  When you&apos;re done, remember to click "Save Settings" below.');
 		var settingsForm = $('<form/>', {id: 'scrumForTrelloForm'});
-
-		// How the 'Burndown Chart' link should appear (if at all).
-		var fieldset_burndownLink = $('<fieldset/>');
-		var legend_burndownLink = $('<legend/>');
-		legend_burndownLink.text("Burndown Chart link");
-		var burndownLinkSetting_radioName = 'burndownLinkSetting';
-		fieldset_burndownLink.append(legend_burndownLink);
-			var burndownRadio_full = $('<input/>', {type: 'radio', name: burndownLinkSetting_radioName, id: 'link_full', value: 'full'});
-			if(setting_link == 'full'){
-				burndownRadio_full.prop('checked', true);
-			}
-			var label_full = $('<label/>', {for: 'link_full'});
-			label_full.text('Enable "Burndown Chart" link (recommended)');
-			fieldset_burndownLink.append(burndownRadio_full).append(label_full).append("<br/>");
-
-			var burndownRadio_icon = $('<input/>', {type: 'radio', name: burndownLinkSetting_radioName, id: 'link_icon', value: 'icon'});
-			if(setting_link == 'icon'){
-				burndownRadio_icon.prop('checked', true);
-			}
-			var label_icon = $('<label/>', {for: 'link_icon'});
-			label_icon.text('Icon only');
-			fieldset_burndownLink.append(burndownRadio_icon).append(label_icon).append("<br/>");
-
-			var burndownRadio_none = $('<input/>', {type: 'radio', name: burndownLinkSetting_radioName, id: 'link_none', value: 'none'});
-			if(setting_link == 'none'){
-				burndownRadio_none.prop('checked', true);
-			}
-			var label_none = $('<label/>', {for: 'link_none'});
-			label_none.text('Disable completely');
-			fieldset_burndownLink.append(burndownRadio_none).append(label_none).append("<br/>");
 
 		// Which estimate buttons should show up.
 		var fieldset_estimateButtons = $('<fieldset/>', {style: 'margin-top:5px'});
@@ -372,7 +272,6 @@ function showSettings()
 			e.preventDefault();
 
 			// Save the settings (persists them using Chrome cloud, LocalStorage, or Cookies - in that order of preference if available).
-			S4T_SETTINGS[SETTING_NAME_LINK_STYLE] = $('#'+settingsFrameId).contents().find('input:radio[name='+burndownLinkSetting_radioName+']:checked').val();
 			S4T_SETTINGS[SETTING_NAME_ESTIMATES] = $('#'+settingsFrameId).contents().find('#'+estimateFieldId).val();
             S4T_SETTINGS[SETTING_NAME_SHOW_DONE] = $('#'+settingsFrameId).contents().find('#'+showDoneId).is(':checked');
 
@@ -388,7 +287,6 @@ function showSettings()
 									.text("Saved!");
 
 		// Set up the form (all added down here to be easier to change the order).
-		settingsForm.append(fieldset_burndownLink);
 		settingsForm.append(fieldset_estimateButtons);
         settingsForm.append(fieldset_showDone);
 		settingsForm.append(saveButton);
@@ -433,39 +331,18 @@ function showSettings()
 	});
 	iframeObj.attr('src', "about:blank"); // need to set this AFTER the .load() has been registered.
 
-	$('.window-header-utils a.js-close-window').click(hideBurndown);
-    //$(window).bind('resize', repositionBurndown);
-    $('.window-overlay').bind('click', hideBurndown);
-
-	//repositionBurndown();
+	$('.window-header-utils a.js-close-window').click(hideSettings);
+	$('.window-overlay').bind('click', hideSettings);
 }
 
-function hideBurndown()
+function hideSettings()
 {
-    $('body').removeClass("window-up");
-    $('.window').css("display", "none");
-    //$(window).unbind('resize', repositionBurndown);
-	$('.window-header-utils a.js-close-window').unbind('click', hideBurndown);
+	$('body').removeClass("window-up");
+	$('.window').css("display", "none");
+	$('.window-header-utils a.js-close-window').unbind('click', hideSettings);
 	$('.window-wrapper').unbind('click', ignoreClicks);
-    $('.window-overlay').unbind('click', hideBurndown);
+	$('.window-overlay').unbind('click', hideSettings);
 }
-
-// NOTE: With the most recent Trello update, I don't think we have to position the window manually anymore.
-// If that changes, restore the function AND uncomment the calls to it.
-//function repositionBurndown()
-//{
-    //windowWidth = $(window).width();
-    //if(windowWidth < 0) // todo change this to a n actual number (probably 710 or so)
-    //{
-    //    // todo shrink our iframe to an appropriate size.  contents should wrap
-    //}
-    //else
-    //{
-    //    burndownWindowWidth = 690;
-    //    leftPadding = (windowWidth - burndownWindowWidth) / 2.0;
-    //    $('.window').css("left", leftPadding);
-    //}
-//}
 
 //calculate board totals
 var ctto;
@@ -493,8 +370,6 @@ function computeTotal(){
 			var scoreSpan = $('<span/>', {class: attr}).text(qm>0?out+' + '+qm+'?':out||'');
 			$total.append(scoreSpan);
 		}
-
-        updateBurndownLink(); // the burndown link and the total are on the same bar... so now they'll be in sync as to whether they're both there or not.
 	});
 };
 
@@ -966,7 +841,7 @@ function onSettingsUpdated(){
 
 	// Refresh the links because link-settings may have changed.
 	$('.s4tLink').remove();
-	updateBurndownLink();
+	showSettingsLink();
 } // end onSettingsUpdated()
 
 /**
